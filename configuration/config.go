@@ -1,6 +1,8 @@
 package configuration
 
 import (
+	"log"
+
 	"github.com/olebedev/config"
 )
 
@@ -14,6 +16,6 @@ func InitConfig() {
 	var err error
 	cfg, err = config.ParseYamlFile(configPath)
 	if err != nil {
-		panic("Can't read configuration file" + configPath)
+		log.Fatalln("Can't read configuration file", configPath)
 	}
 }
