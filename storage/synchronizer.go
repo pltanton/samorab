@@ -24,10 +24,11 @@ func NewDictionarySynchronizer() DictionarySynchronizer {
 	return synchronizer
 }
 
-func deleteEmpty(s []string) []string {
+func transform(s []string) []string {
 	var r []string
 	for _, str := range s {
 		if str != "" {
+			str = strings.TrimSpace(str)
 			r = append(r, str)
 		}
 	}
@@ -55,8 +56,8 @@ func (d DictionarySynchronizer) Synchronize() {
 
 			dbRecord := DictionaryRecord{
 				strings.Trim(record[1], " 1."),
-				deleteEmpty(strings.Split(record[6], ",")),
-				deleteEmpty(strings.Split(record[7], ",")),
+				transform(strings.Split(record[6], ",")),
+				transform(strings.Split(record[7], ",")),
 			}
 
 			b := tx.Bucket([]byte("dictionary"))

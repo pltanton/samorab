@@ -6,11 +6,13 @@ import (
 	"math/rand"
 	"strconv"
 	"time"
+	"regexp"
+	"strings"
 
+	"github.com/un000/mystem-wrapper"
 	tgbotapi "gopkg.in/telegram-bot-api.v4"
 
 	"github.com/pltanton/samorab/storage"
-	"github.com/pltanton/samorab/utils"
 )
 
 type Listener struct {
@@ -36,18 +38,33 @@ func (l Listener) Start() {
 }
 
 func (l Listener) processUpdate(upd tgbotapi.Update) {
+	rand.Seed(time.Now().Unix())
+
 	if upd.Message != nil {
 		if upd.Message.IsCommand() {
 			go l.processCommand(upd.Message)
 		}
-		go l.processMessage(upd.Message)
+		chance := storage.GetChance(int(upd.Message.Chat.ID))
+		if rand.Intn(100) <= chance {
+			go l.processMessage(upd.Message)
+		}
 	}
 }
+
+var mystem = mystem_wrapper.New("/usr/bin/mystem", []string{})
+
 
 func (l Listener) processMessage(message *tgbotapi.Message) {
 	rand.Seed(time.Now().Unix())
 
-	words := utils.SPLIT_REGEX.Split(message.Text, -1)
+	reg, _ := regexp.Compile("[^а-яА-ЯёЁ]")
+	rawWords := strings.Fields(reg.ReplaceAllString(message.Text, " "))
+
+	words, err := mystem.Transform(rawWords)
+	if err != nil {
+		log.Printf("Can't mystem: %v\n", message.Text)
+		return
+	}
 
 	records := make([]*storage.DictionaryRecord, 0)
 	for _, word := range words {
@@ -62,11 +79,6 @@ func (l Listener) processMessage(message *tgbotapi.Message) {
 		records = append(records, record)
 	}
 	if len(records) == 0 {
-		return
-	}
-
-	chance := storage.GetChance(int(message.Chat.ID))
-	if !(rand.Intn(100) <= chance) {
 		return
 	}
 
