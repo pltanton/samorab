@@ -7,12 +7,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/kljensen/snowball"
-
-	"github.com/pltanton/samorab/utils"
 )
 
 type DictionarySynchronizer struct {
@@ -55,18 +53,18 @@ func (d DictionarySynchronizer) Synchronize() {
 				return err
 			}
 
-			dbKey, err := snowball.Stem(record[1], "russian", true)
-
 			dbRecord := DictionaryRecord{
-				record[1],
-				deleteEmpty(utils.SPLIT_REGEX.Split(record[6], -1)),
-				deleteEmpty(utils.SPLIT_REGEX.Split(record[7], -1)),
+				strings.Trim(record[1], " 1."),
+				deleteEmpty(strings.Split(record[6], ",")),
+				deleteEmpty(strings.Split(record[7], ",")),
 			}
 
 			b := tx.Bucket([]byte("dictionary"))
 			marshaledRecord, _ := json.Marshal(dbRecord)
 
-			b.Put([]byte(dbKey), marshaledRecord)
+			key := strings.Trim(strings.ToLower(record[1]), " ")
+
+			b.Put([]byte(key), marshaledRecord)
 		}
 		return nil
 	})

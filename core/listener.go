@@ -1,11 +1,12 @@
 package core
 
 import (
-	//"log"
+	"fmt"
+	"log"
 	"math/rand"
+	"strconv"
 	"time"
 
-	"github.com/kljensen/snowball"
 	tgbotapi "gopkg.in/telegram-bot-api.v4"
 
 	"github.com/pltanton/samorab/storage"
@@ -30,23 +31,31 @@ func InitListener(bot *tgbotapi.BotAPI) Listener {
 
 func (l Listener) Start() {
 	for upd := range l.updates {
-		l.processMessage(upd)
+		l.processUpdate(upd)
 	}
 }
 
-func (l Listener) processMessage(upd tgbotapi.Update) {
+func (l Listener) processUpdate(upd tgbotapi.Update) {
+	if upd.Message != nil {
+		if upd.Message.IsCommand() {
+			go l.processCommand(upd.Message)
+		}
+		go l.processMessage(upd.Message)
+	}
+}
+
+func (l Listener) processMessage(message *tgbotapi.Message) {
 	rand.Seed(time.Now().Unix())
 
-	if upd.Message == nil {
-		return
-	}
+	words := utils.SPLIT_REGEX.Split(message.Text, -1)
+
 	records := make([]*storage.DictionaryRecord, 0)
-	for _, word := range utils.SPLIT_REGEX.Split(upd.Message.Text, -1) {
+	for _, word := range words {
 		if word == "" {
 			continue
 		}
-		stemmedWord, _ := snowball.Stem(word, "russian", true)
-		record := storage.FindAlternatives(stemmedWord)
+
+		record := storage.FindAlternatives(word)
 		if record == nil {
 			continue
 		}
@@ -56,15 +65,46 @@ func (l Listener) processMessage(upd tgbotapi.Update) {
 		return
 	}
 
+	chance := storage.GetChance(int(message.Chat.ID))
+	if !(rand.Intn(100) <= chance) {
+		return
+	}
+
 	record := records[rand.Intn(len(records))]
 
-	words := append(record.Alternative, record.Synonim...)
+	words = append(record.Alternative, record.Synonim...)
 	if len(words) == 0 {
 		return
 	}
 	replacement := words[rand.Intn(len(words))]
 
-	msg := tgbotapi.NewMessage(upd.Message.Chat.ID, formatMessage(record.Original, replacement))
-	msg.ReplyToMessageID = upd.Message.MessageID
+	l.replyToMessage(message, formatMessage(record.Original, replacement))
+}
+
+func (l Listener) replyToMessage(message *tgbotapi.Message, answer string) {
+	msg := tgbotapi.NewMessage(message.Chat.ID, answer)
+	msg.ReplyToMessageID = message.MessageID
 	l.bot.Send(msg)
+}
+
+func (l Listener) processCommand(message *tgbotapi.Message) {
+	log.Printf("Recieved a command `%v` from chat #%v\n", message.Command(), message.Chat.ID)
+	switch command := message.Command(); command {
+	case "verojatnost":
+		if message.CommandArguments() == "" {
+			currentChance := storage.GetChance(int(message.Chat.ID))
+			l.replyToMessage(message, fmt.Sprintf("Current chance to reply: %v%%", currentChance))
+		} else {
+			currentChance := storage.GetChance(int(message.Chat.ID))
+			argument, err := strconv.ParseInt(message.CommandArguments(), 10, 32)
+			if err != nil || argument <= 0 || argument > 100 {
+				l.replyToMessage(message, "I can set chance only in range of 1 to 100, stop bullshitting me!")
+				return
+			}
+			storage.SetChance(int(message.Chat.ID), int(argument))
+			log.Printf("Set chance %v for chat #%v", argument, message.Chat.ID)
+
+			l.replyToMessage(message, fmt.Sprintf("Reply chance changed from %v%% to %v%%", currentChance, argument))
+		}
+	}
 }
