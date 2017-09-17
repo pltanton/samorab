@@ -8,6 +8,7 @@ import (
 	"github.com/pltanton/samorab/configuration"
 )
 
+// InitTelegramAPI creates new BotAPI instance by settings from configulation
 func InitTelegramAPI() *tgbotapi.BotAPI {
 	key, error := configuration.GetCfg().String("telegram_api_key")
 	if error != nil {
