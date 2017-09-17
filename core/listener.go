@@ -4,16 +4,19 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"strconv"
-	"time"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/un000/mystem-wrapper"
 	tgbotapi "gopkg.in/telegram-bot-api.v4"
 
+	"github.com/pltanton/samorab/configuration"
 	"github.com/pltanton/samorab/storage"
 )
+
+var mystem *mystem_wrapper.MyStem
 
 type Listener struct {
 	bot     *tgbotapi.BotAPI
@@ -21,6 +24,11 @@ type Listener struct {
 }
 
 func InitListener(bot *tgbotapi.BotAPI) Listener {
+	mystemBin, err := configuration.GetCfg().String("mystem_bin")
+	if err != nil {
+		log.Fatalf("Can't find mystem in conf file")
+	}
+	mystem = mystem_wrapper.New(mystemBin, []string{})
 	updatesChannel, err := bot.GetUpdatesChan(tgbotapi.NewUpdate(0))
 	if err != nil {
 		panic("Can't subscribe to updates")
@@ -41,18 +49,14 @@ func (l Listener) processUpdate(upd tgbotapi.Update) {
 	rand.Seed(time.Now().Unix())
 
 	if upd.Message != nil {
-		if upd.Message.IsCommand() {
+		switch {
+		case upd.Message.IsCommand():
 			go l.processCommand(upd.Message)
-		}
-		chance := storage.GetChance(int(upd.Message.Chat.ID))
-		if rand.Intn(100) <= chance {
+		case rand.Intn(100) <= storage.GetChance(int(upd.Message.Chat.ID)):
 			go l.processMessage(upd.Message)
 		}
 	}
 }
-
-var mystem = mystem_wrapper.New("/usr/bin/mystem", []string{})
-
 
 func (l Listener) processMessage(message *tgbotapi.Message) {
 	rand.Seed(time.Now().Unix())
@@ -110,13 +114,24 @@ func (l Listener) processCommand(message *tgbotapi.Message) {
 			currentChance := storage.GetChance(int(message.Chat.ID))
 			argument, err := strconv.ParseInt(message.CommandArguments(), 10, 32)
 			if err != nil || argument <= 0 || argument > 100 {
-				l.replyToMessage(message, "I can set chance only in range of 1 to 100, stop bullshitting me!")
+				l.replyToMessage(message, "Ты своей головой сам подумай то! Вероятность должна быть в промежутке от 1 до 100!")
 				return
 			}
 			storage.SetChance(int(message.Chat.ID), int(argument))
 			log.Printf("Set chance %v for chat #%v", argument, message.Chat.ID)
 
-			l.replyToMessage(message, fmt.Sprintf("Reply chance changed from %v%% to %v%%", currentChance, argument))
+			l.replyToMessage(message, fmt.Sprintf("Раньше я мог ответить с вероятностью %v%%, атеперь с %v%%!", currentChance, argument))
+		}
+	case "perevedi":
+		alternatives := storage.FindAlternatives(message.CommandArguments())
+		if alternatives == nil {
+			l.replyToMessage(message, "Кажется, я ничего не знаю об этом слове.")
+			return
+		} else {
+			l.replyToMessage(
+				message,
+				fmt.Sprintf("Я бы заменил это слово на: %v", strings.Join(append(alternatives.Alternative, alternatives.Synonim...), " или ")),
+			)
 		}
 	}
 }
