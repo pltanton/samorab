@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/un000/mystem-wrapper"
-	tgbotapi "gopkg.in/telegram-bot-api.v4"
+	"gopkg.in/telegram-bot-api.v4"
 
 	"github.com/pltanton/samorab/configuration"
 	"github.com/pltanton/samorab/storage"
@@ -61,7 +61,7 @@ func (l Listener) processUpdate(upd tgbotapi.Update) {
 	}
 }
 
-func (l Listener) processMessage(message *tgbotapi.Message) {
+func (l Listener) processMessage(message *tgbotapi.Message) bool {
 	rand.Seed(time.Now().Unix())
 
 	reg, _ := regexp.Compile("[^а-яА-ЯёЁ]")
@@ -70,7 +70,7 @@ func (l Listener) processMessage(message *tgbotapi.Message) {
 	words, err := mystem.Transform(rawWords)
 	if err != nil {
 		log.Printf("Can't mystem: %v\n", message.Text)
-		return
+		return false
 	}
 
 	records := make([]*storage.DictionaryRecord, 0)
@@ -86,18 +86,19 @@ func (l Listener) processMessage(message *tgbotapi.Message) {
 		records = append(records, record)
 	}
 	if len(records) == 0 {
-		return
+		return false
 	}
 
 	record := records[rand.Intn(len(records))]
 
 	words = append(record.Alternative, record.Synonim...)
 	if len(words) == 0 {
-		return
+		return false
 	}
 	replacement := words[rand.Intn(len(words))]
 
 	l.replyToMessage(message, formatMessage(record.Original, replacement))
+	return true
 }
 
 func (l Listener) replyToMessage(message *tgbotapi.Message, answer string) {
@@ -120,7 +121,7 @@ func (l Listener) processCommand(message *tgbotapi.Message) {
 func (l Listener) commandChance(message *tgbotapi.Message) {
 	if message.CommandArguments() == "" {
 		currentChance := storage.GetChance(int(message.Chat.ID))
-		l.replyToMessage(message, fmt.Sprintf("Current chance to reply: %v%%", currentChance))
+		l.replyToMessage(message, fmt.Sprintf("Сейчас я отвечаю на записки с вероятностью: %v%%", currentChance))
 	} else {
 		currentChance := storage.GetChance(int(message.Chat.ID))
 		argument, err := strconv.ParseInt(message.CommandArguments(), 10, 32)
@@ -136,7 +137,21 @@ func (l Listener) commandChance(message *tgbotapi.Message) {
 }
 
 func (l Listener) commandTranslate(message *tgbotapi.Message) {
-	alternatives := storage.FindAlternatives(message.CommandArguments())
+	args := message.CommandArguments()
+	if len(args) == 0 {
+		replied := message.ReplyToMessage
+		if strings.ContainsRune(replied.Text, ' ') {
+			processed := l.processMessage(replied)
+			if !processed {
+				l.replyToMessage(replied, "Мне нечего к этому добавить! Похоже, что послание и так вполне русское!")
+			}
+			return
+		} else {
+			args = replied.Text
+		}
+	}
+
+	alternatives := storage.FindAlternatives(args)
 	if alternatives == nil {
 		l.replyToMessage(message, "Кажется, я ничего не знаю об этом слове.")
 		return
