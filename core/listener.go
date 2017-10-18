@@ -140,6 +140,10 @@ func (l Listener) commandTranslate(message *tgbotapi.Message) {
 	args := message.CommandArguments()
 	if len(args) == 0 {
 		replied := message.ReplyToMessage
+		if replied == nil {
+			l.replyToMessage(message, "Я не понимаю, что тебе от меня нужно! Прекрати, пожалуйста, не мучай меня.")
+			return
+		}
 		if strings.ContainsRune(replied.Text, ' ') {
 			processed := l.processMessage(replied)
 			if !processed {
