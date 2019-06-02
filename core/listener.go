@@ -69,6 +69,7 @@ func (l Listener) processMessage(message *tgbotapi.Message) bool {
 
 	words, err := mystem.Transform(rawWords)
 	if err != nil {
+		log.Printf("Can't mystem: %v\n", err.Message)
 		log.Printf("Can't mystem: %v\n", message.Text)
 		return false
 	}
