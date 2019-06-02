@@ -69,7 +69,7 @@ func (l Listener) processMessage(message *tgbotapi.Message) bool {
 
 	words, err := mystem.Transform(rawWords)
 	if err != nil {
-		log.Printf("Can't mystem: %v\n", err.Message)
+		log.Printf("Can't mystem: %v\n", err)
 		log.Printf("Can't mystem: %v\n", message.Text)
 		return false
 	}
@@ -133,7 +133,7 @@ func (l Listener) commandChance(message *tgbotapi.Message) {
 		storage.SetChance(int(message.Chat.ID), int(argument))
 		log.Printf("Set chance %v for chat #%v", argument, message.Chat.ID)
 
-		l.replyToMessage(message, fmt.Sprintf("Раньше я мог ответить с вероятностью %v%%, атеперь с %v%%!", currentChance, argument))
+		l.replyToMessage(message, fmt.Sprintf("Раньше я мог ответить с вероятностью %v%%, а теперь с %v%%!", currentChance, argument))
 	}
 }
 
