@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/un000/mystem-wrapper"
+	"github.com/pltanton/samorab/mystem-wrapper"
 	"gopkg.in/telegram-bot-api.v4"
 
 	"github.com/pltanton/samorab/configuration"
