@@ -54,6 +54,10 @@ func (d DictionarySynchronizer) Synchronize() {
 				return err
 			}
 
+			if len(record) < 8 {
+				log.Println("Strange record with length=%v: %v", len(record), record)
+				continue
+			}
 			dbRecord := DictionaryRecord{
 				strings.Trim(record[1], " 1."),
 				transform(strings.Split(record[6], ",")),
