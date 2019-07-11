@@ -1,4 +1,5 @@
-with import <nixpkgs> {};
+{ buildGoPackage, lib }:
+
 buildGoPackage {
   name = "samorab";
   version = "1.0";
