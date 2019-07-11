@@ -1,4 +1,5 @@
-{ buildGoPackage, lib }:
+{ pkgs ? import <nixpkgs> {} }:
+with pkgs;
 
 buildGoPackage {
   name = "samorab";
