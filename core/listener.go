@@ -127,7 +127,7 @@ func (l Listener) commandChance(message *tgbotapi.Message) {
 		currentChance := storage.GetChance(int(message.Chat.ID))
 		argument, err := strconv.ParseInt(message.CommandArguments(), 10, 32)
 		if err != nil || argument <= 0 || argument > 100 {
-			l.replyToMessage(message, "Ты своей головой сам подумай то! Вероятность должна быть в промежутке от 1 до 100!")
+			l.replyToMessage(message, "Ты своей головой сам подумай-то! Вероятность должна быть в промежутке от 1 до 100!")
 			return
 		}
 		storage.SetChance(int(message.Chat.ID), int(argument))
